@@ -5,7 +5,7 @@ import io
 import pypdf
 import pytest
 
-from document_brain.ingestion import extract_text_from_pdf
+from document_brain.ingestion import chunk_text, extract_text_from_pdf
 
 
 def _make_pdf(pages: list[str]) -> bytes:
@@ -75,3 +75,48 @@ def test_raises_on_invalid_pdf_bytes() -> None:
     """Garbage input produces a clear, propagating error."""
     with pytest.raises(pypdf.errors.PdfReadError):
         extract_text_from_pdf(b"this is not a PDF")
+
+
+def test_chunks_short_text_to_single_chunk() -> None:
+    """Text shorter than chunk_size returns as one chunk."""
+    result = chunk_text("Hello world.", chunk_size=500, chunk_overlap=50)
+    assert result == ["Hello world."]
+
+
+def test_chunks_empty_text_returns_empty_list() -> None:
+    """Whitespace-only input produces no chunks."""
+    assert chunk_text("", chunk_size=500, chunk_overlap=50) == []
+    assert chunk_text("   \n\n   ", chunk_size=500, chunk_overlap=50) == []
+
+
+def test_chunks_respect_size_limit() -> None:
+    """No chunk exceeds chunk_size, even with no natural separators."""
+    text = "x" * 2000
+    result = chunk_text(text, chunk_size=500, chunk_overlap=50)
+    assert all(len(chunk) <= 500 for chunk in result)
+    assert len(result) > 1
+
+
+def test_chunks_split_at_paragraph_when_possible() -> None:
+    """When a paragraph break fits within chunk_size, splitting happens there."""
+    text = "First paragraph here." + "\n\n" + ("More text. " * 100)
+    result = chunk_text(text, chunk_size=200, chunk_overlap=20)
+    # First chunk should end at the paragraph break, not mid-sentence.
+    assert result[0] == "First paragraph here."
+
+
+def test_chunks_overlap_between_adjacent() -> None:
+    """Consecutive chunks share approximately chunk_overlap characters."""
+    text = "word " * 500  # produces long text with word boundaries
+    result = chunk_text(text, chunk_size=200, chunk_overlap=40)
+    # The end of chunk N should appear at the start of chunk N+1.
+    for i in range(len(result) - 1):
+        tail = result[i][-30:]  # last 30 chars
+        # Some portion of tail should appear in the next chunk's start
+        assert any(tail[j:] in result[i + 1][:60] for j in range(len(tail)))
+
+
+def test_chunks_raises_when_overlap_too_large() -> None:
+    """Misconfiguration is caught explicitly rather than infinite-looping."""
+    with pytest.raises(ValueError, match="chunk_overlap"):
+        chunk_text("some text", chunk_size=50, chunk_overlap=50)

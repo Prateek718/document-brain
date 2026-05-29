@@ -12,3 +12,9 @@ wheels/
 .env.local
 data/
 *.sqlite
+
+# Test coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/

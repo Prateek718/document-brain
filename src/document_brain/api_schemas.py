@@ -1,10 +1,13 @@
 """Request/response models for the HTTP API."""
 
 from datetime import UTC, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from document_brain.schemas import RetrievalResult
+
+Confidence = Literal["high", "medium", "low", "none"]
 
 
 class IngestResponse(BaseModel):
@@ -20,5 +23,6 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     sources: list[RetrievalResult]
+    confidence: Confidence
     model: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))

@@ -25,6 +25,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _confidence_from_chunks(chunks: list) -> str:  # type: ignore[type-arg]
+    """Heuristic: confidence reflects the top retrieved chunk's similarity."""
+    if not chunks:
+        return "none"
+    top = chunks[0].score
+    if top >= 0.6:
+        return "high"
+    if top >= 0.45:
+        return "medium"
+    return "low"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Run once at startup; ensure Qdrant collection exists."""
@@ -88,8 +100,22 @@ async def query_documents(request: QueryRequest) -> QueryResponse:
 
     try:
         answer = await generate_answer(request.question, chunks)
-    except httpx.HTTPStatusError as e:
-        logger.error("LLM call failed: %s", e)
-        raise HTTPException(status_code=502, detail="LLM service unavailable.") from e
+    except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.ConnectError) as e:
+        logger.error("LLM call failed: %s; returning retrieval-only fallback.", e)
+        if chunks:
+            answer = (
+                "The LLM service is currently unavailable. Here are the most relevant "
+                "passages found in the documents:\n\n"
+                + "\n\n---\n\n".join(
+                    f"[Source {i + 1}, page {c.page}] {c.text}" for i, c in enumerate(chunks)
+                )
+            )
+        else:
+            answer = "The LLM service is unavailable and no relevant context was found."
 
-    return QueryResponse(answer=answer, sources=chunks, model=settings.llm_model)
+    return QueryResponse(
+        answer=answer,
+        sources=chunks,
+        confidence=_confidence_from_chunks(chunks),  # type: ignore[arg-type]
+        model=settings.llm_model,
+    )

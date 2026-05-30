@@ -9,6 +9,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      QDRANT_URL: http://localhost:6333
+      QDRANT_API_KEY: dummy-key-for-ci
+      QDRANT_COLLECTION: ci_test_collection
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4

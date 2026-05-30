@@ -94,3 +94,37 @@ def test_trace_id_in_response_headers(client: TestClient) -> None:
     response = client.get("/health")
     assert "x-trace-id" in response.headers
     assert len(response.headers["x-trace-id"]) == 8
+
+
+def test_query_returns_confidence_high_for_strong_match(client: TestClient) -> None:
+    response = client.post("/query", json={"question": "What is the SI unit of mass?"})
+    assert response.status_code == 200
+    assert response.json()["confidence"] in ("high", "medium")
+
+
+def test_query_returns_confidence_none_when_no_matches(client: TestClient) -> None:
+    response = client.post(
+        "/query", json={"question": "completely unrelated topic about quantum chromodynamics"}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["confidence"] == "none"
+    assert body["sources"] == []
+
+
+def test_query_falls_back_when_llm_fails(client: TestClient) -> None:
+    """When the LLM raises, the endpoint still returns 200 with a fallback answer."""
+    from unittest.mock import patch
+
+    import httpx
+
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    error = httpx.ConnectError("simulated network failure", request=request)
+
+    with patch("document_brain.main.generate_answer", side_effect=error):
+        response = client.post("/query", json={"question": "What is the SI unit of mass?"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "unavailable" in body["answer"].lower()
+    assert len(body["sources"]) >= 1

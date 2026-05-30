@@ -41,6 +41,10 @@ class Settings(BaseSettings):
         description="Anthropic model ID for answer generation.",
     )
     max_tokens: int = Field(default=1024, description="Max tokens in LLM response.")
+    similarity_threshold: float = Field(
+        default=0.3, description="Minimum cosine similarity for a chunk to be returned."
+    )
+    default_top_k: int = Field(default=5, description="Default number of chunks to retrieve.")
 
 
 settings = Settings()  # type: ignore[call-arg]

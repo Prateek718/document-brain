@@ -14,24 +14,20 @@ from document_brain.vector_store import get_client
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TOP_K = 5
-DEFAULT_SCORE_THRESHOLD = 0.3
-
 
 def search(
     query: str,
-    top_k: int = DEFAULT_TOP_K,
-    score_threshold: float = DEFAULT_SCORE_THRESHOLD,
+    top_k: int | None = None,
+    score_threshold: float | None = None,
 ) -> list[RetrievalResult]:
     """Return the top-k chunks most semantically similar to the query.
 
     Args:
         query: Natural-language query string.
-        top_k: Maximum number of chunks to return. Qdrant returns this many
-            results before threshold filtering.
-        score_threshold: Drop results with cosine similarity below this value.
-            Defends against returning irrelevant chunks when the corpus has
-            no good match — better to return nothing than mislead the LLM.
+        top_k: Maximum number of chunks to return. Defaults to settings.default_top_k.
+        score_threshold: Drop results below this cosine similarity. Defaults to
+            settings.similarity_threshold. The threshold is the hallucination guard —
+            an empty result list is honest "no relevant context."
 
     Returns:
         Ranked list (highest score first) of RetrievalResult objects.
@@ -44,14 +40,19 @@ def search(
     if not query.strip():
         raise ValueError("query must be a non-empty string.")
 
+    effective_top_k = top_k if top_k is not None else settings.default_top_k
+    effective_threshold = (
+        score_threshold if score_threshold is not None else settings.similarity_threshold
+    )
+
     [query_vector] = embed_texts([query])
     client = get_client()
 
     response = client.query_points(
         collection_name=settings.qdrant_collection,
         query=query_vector,
-        limit=top_k,
-        score_threshold=score_threshold,
+        limit=effective_top_k,
+        score_threshold=effective_threshold,
         with_payload=True,
     )
 
@@ -71,6 +72,6 @@ def search(
         "Query %r returned %d results above threshold %.2f.",
         query[:60],
         len(results),
-        score_threshold,
+        effective_threshold,
     )
     return results

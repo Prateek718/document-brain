@@ -35,6 +35,12 @@ class Settings(BaseSettings):
         default=384,
         description="Output dimensions of the embedding model. Must match collection config.",
     )
+    anthropic_api_key: str = Field(description="API key for Claude.")
+    llm_model: str = Field(
+        default="claude-haiku-4-5-20251001",
+        description="Anthropic model ID for answer generation.",
+    )
+    max_tokens: int = Field(default=1024, description="Max tokens in LLM response.")
 
 
 settings = Settings()  # type: ignore[call-arg]

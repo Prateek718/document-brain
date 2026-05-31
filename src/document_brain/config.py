@@ -40,6 +40,10 @@ class Settings(BaseSettings):
         default="claude-haiku-4-5-20251001",
         description="Anthropic model ID for answer generation.",
     )
+    anthropic_base_url: str = Field(
+        default="https://api.anthropic.com",
+        description="Base URL for the Anthropic API. Override to point at a mock or proxy.",
+    )
     max_tokens: int = Field(default=1024, description="Max tokens in LLM response.")
     similarity_threshold: float = Field(
         default=0.3, description="Minimum cosine similarity for a chunk to be returned."

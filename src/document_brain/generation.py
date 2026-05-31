@@ -38,7 +38,7 @@ async def generate_answer(question: str, chunks: list[RetrievalResult]) -> str:
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(
-            "https://api.anthropic.com/v1/messages",
+            f"{settings.anthropic_base_url}/v1/messages",
             headers={
                 "x-api-key": settings.anthropic_api_key,
                 "anthropic-version": "2023-06-01",

@@ -30,6 +30,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "locust>=2.44.0",
     "mypy>=2.1.0",
     "pre-commit>=4.6.0",
     "pytest>=9.0.3",

@@ -10,6 +10,7 @@ from typing import Annotated
 import httpx
 import pypdf
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from starlette.concurrency import run_in_threadpool
 
 from document_brain.api_schemas import IngestResponse, QueryRequest, QueryResponse
 from document_brain.config import settings
@@ -94,7 +95,7 @@ async def upload_document(
 @app.post("/query", response_model=QueryResponse)
 async def query_documents(request: QueryRequest) -> QueryResponse:
     try:
-        chunks = search(request.question, top_k=request.top_k)
+        chunks = await run_in_threadpool(search, request.question, top_k=request.top_k)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 

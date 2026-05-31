@@ -6,8 +6,9 @@ without real token spend.
 """
 
 import random
+from typing import ClassVar
 
-from locust import HttpUser, between, task
+from locust import HttpUser, LoadTestShape, between, task
 
 # Questions should match the ingested document so retrieval returns real
 # chunks and we exercise the full prompt-building path, not the empty-context
@@ -41,3 +42,26 @@ class DocumentBrainUser(HttpUser):
             json={"question": question},
             name="/query",
         )
+
+
+class StagedRampShape(LoadTestShape):
+    """Steps concurrency up in holds so percentiles stabilize at each level,
+    making the saturation knee visible. Each stage: cumulative seconds, users, spawn rate."""
+
+    stages: ClassVar[list[dict[str, int]]] = [
+        {"duration": 60, "users": 10, "spawn_rate": 2},
+        {"duration": 120, "users": 20, "spawn_rate": 2},
+        {"duration": 180, "users": 30, "spawn_rate": 2},
+        {"duration": 240, "users": 40, "spawn_rate": 2},
+        {"duration": 300, "users": 50, "spawn_rate": 2},
+        {"duration": 360, "users": 60, "spawn_rate": 2},
+        {"duration": 420, "users": 80, "spawn_rate": 4},
+        {"duration": 480, "users": 100, "spawn_rate": 4},
+    ]
+
+    def tick(self) -> tuple[int, int] | None:
+        run_time = self.get_run_time()  # type: ignore[no-untyped-call]  # Locust base method is untyped
+        for stage in self.stages:
+            if run_time < stage["duration"]:
+                return (stage["users"], stage["spawn_rate"])
+        return None

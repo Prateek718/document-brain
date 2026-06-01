@@ -20,6 +20,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    api_key: str = Field(
+        description="Secret key required in the X-API-Key header to access protected endpoints.",
+    )
+
     qdrant_url: str = Field(description="Full URL of the Qdrant cluster, including port.")
     qdrant_api_key: str = Field(description="API key with read/write access to the collection.")
     qdrant_collection: str = Field(

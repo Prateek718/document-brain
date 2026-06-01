@@ -14,6 +14,7 @@ jobs:
       QDRANT_API_KEY: dummy-key-for-ci
       QDRANT_COLLECTION: ci_test_collection
       ANTHROPIC_API_KEY: dummy-anthropic-key-for-ci
+      API_KEY: dummy-api-key-for-ci   # Required so the app's Settings() can initialize in the mypy step.  # pytest overrides this with its own key via tests/conftest.py.
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4

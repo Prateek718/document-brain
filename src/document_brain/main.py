@@ -9,10 +9,11 @@ from typing import Annotated
 
 import httpx
 import pypdf
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from starlette.concurrency import run_in_threadpool
 
 from document_brain.api_schemas import IngestResponse, QueryRequest, QueryResponse
+from document_brain.auth import require_api_key
 from document_brain.config import settings
 from document_brain.generation import generate_answer
 from document_brain.ingestion import ingest_document
@@ -71,7 +72,7 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/documents", response_model=IngestResponse)
+@app.post("/documents", response_model=IngestResponse, dependencies=[Depends(require_api_key)])
 async def upload_document(
     file: Annotated[UploadFile, File()],
 ) -> IngestResponse:
@@ -92,7 +93,7 @@ async def upload_document(
     return IngestResponse(filename=file.filename, chunks_ingested=chunks)
 
 
-@app.post("/query", response_model=QueryResponse)
+@app.post("/query", response_model=QueryResponse, dependencies=[Depends(require_api_key)])
 async def query_documents(request: QueryRequest) -> QueryResponse:
     try:
         chunks = await run_in_threadpool(search, request.question, top_k=request.top_k)

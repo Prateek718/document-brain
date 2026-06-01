@@ -44,7 +44,7 @@ def client() -> Generator[TestClient, None, None]:
         patch("document_brain.retrieval.settings.qdrant_collection", collection),
         patch("document_brain.main.ensure_collection_exists"),
         patch("document_brain.main.generate_answer", side_effect=fake_generate),
-        TestClient(app) as c,
+        TestClient(app, headers={"X-API-Key": "test-api-key"}) as c,
     ):
         yield c
 
@@ -128,3 +128,36 @@ def test_query_falls_back_when_llm_fails(client: TestClient) -> None:
     body = response.json()
     assert "unavailable" in body["answer"].lower()
     assert len(body["sources"]) >= 1
+
+
+def test_query_rejects_missing_api_key() -> None:
+    """Protected endpoint returns 401 when no API key is supplied."""
+    with (
+        patch("document_brain.main.ensure_collection_exists"),
+        TestClient(app) as unauth_client,
+    ):
+        response = unauth_client.post("/query", json={"question": "valid question"})
+    assert response.status_code == 401
+
+
+def test_query_rejects_wrong_api_key() -> None:
+    """Protected endpoint returns 401 when the API key is incorrect."""
+    with (
+        patch("document_brain.main.ensure_collection_exists"),
+        TestClient(app, headers={"X-API-Key": "wrong-key"}) as unauth_client,
+    ):
+        response = unauth_client.post("/query", json={"question": "valid question"})
+    assert response.status_code == 401
+
+
+def test_documents_rejects_missing_api_key() -> None:
+    """Ingestion endpoint is also protected: 401 without a key."""
+    with (
+        patch("document_brain.main.ensure_collection_exists"),
+        TestClient(app) as unauth_client,
+    ):
+        response = unauth_client.post(
+            "/documents",
+            files={"file": ("test.pdf", b"%PDF-fake", "application/pdf")},
+        )
+    assert response.status_code == 401

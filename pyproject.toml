@@ -60,6 +60,9 @@ ignore_errors = true
 testpaths = ["tests"]
 addopts = "-ra --strict-markers --cov=document_brain --cov-report=term-missing"
 asyncio_mode = "auto"
+markers = [
+    "integration: tests requiring a live Qdrant instance (run in CI via service container)",
+]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"

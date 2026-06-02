@@ -3,6 +3,7 @@
 import hashlib
 import io
 import logging
+import uuid
 from functools import lru_cache
 from typing import TYPE_CHECKING, Final, cast
 
@@ -149,10 +150,10 @@ def _make_point_id(document_id: str, chunk_index: int) -> str:
     Combining document_id with chunk_index means uploading the same PDF twice
     produces the same point ids, and Qdrant overwrites rather than duplicates.
     """
-    raw = f"{document_id}:{chunk_index}"
-    # Qdrant accepts UUIDs or 64-bit ints as point ids; we hash to a UUID-5-like
-    # hex string for deterministic-but-unique ids.
-    return hashlib.sha256(raw.encode()).hexdigest()[:32]
+    # Qdrant requires point ids to be unsigned ints or UUID-format strings.
+    # uuid5 derives a deterministic UUID from the name, so re-ingesting the same
+    # chunk yields the same id and Qdrant overwrites rather than duplicates.
+    return str(uuid.uuid5(uuid.NAMESPACE_OID, f"{document_id}:{chunk_index}"))
 
 
 def ingest_document(filename: str, pdf_bytes: bytes) -> int:

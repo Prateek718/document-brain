@@ -8,4 +8,4 @@ collection. This value is a test-only fixture, not a secret.
 import os
 
 # Must run before document_brain.config is imported anywhere.
-os.environ["API_KEY"] = "test-api-key"
+os.environ["API_KEY"] = "test-api-key-padded-to-thirty-two-chars"

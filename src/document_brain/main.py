@@ -16,7 +16,7 @@ from document_brain.api_schemas import IngestResponse, QueryRequest, QueryRespon
 from document_brain.auth import require_api_key
 from document_brain.config import settings
 from document_brain.generation import generate_answer
-from document_brain.ingestion import ingest_document
+from document_brain.ingestion import _get_embedder, ingest_document
 from document_brain.retrieval import search
 from document_brain.vector_store import ensure_collection_exists
 
@@ -41,8 +41,14 @@ def _confidence_from_chunks(chunks: list) -> str:  # type: ignore[type-arg]
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Run once at startup; ensure Qdrant collection exists."""
+    """Run once at startup: ensure the collection exists and warm the embedder.
+
+    The embedding model loads lazily on first use (~10-30s). Warming it here
+    moves that cost to startup so the first user request isn't the slow one,
+    and so a cold container does not time out a request after an idle spin-down.
+    """
     ensure_collection_exists()
+    _get_embedder()
     logger.info("Document Brain ready.")
     yield
 
@@ -74,10 +80,16 @@ def health() -> dict[str, str]:
 
 @app.post("/documents", response_model=IngestResponse, dependencies=[Depends(require_api_key)])
 async def upload_document(
+    request: Request,
     file: Annotated[UploadFile, File()],
 ) -> IngestResponse:
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+
+    max_bytes = 50 * 1024 * 1024
+    content_length = request.headers.get("content-length")
+    if content_length is not None and int(content_length) > max_bytes:
+        raise HTTPException(status_code=413, detail="File exceeds 50MB limit.")
 
     pdf_bytes = await file.read()
     if len(pdf_bytes) == 0:

@@ -44,7 +44,7 @@ def client() -> Generator[TestClient, None, None]:
         patch("document_brain.retrieval.settings.qdrant_collection", collection),
         patch("document_brain.main.ensure_collection_exists"),
         patch("document_brain.main.generate_answer", side_effect=fake_generate),
-        TestClient(app, headers={"X-API-Key": "test-api-key"}) as c,
+        TestClient(app, headers={"X-API-Key": "test-api-key-padded-to-thirty-two-chars"}) as c,
     ):
         yield c
 

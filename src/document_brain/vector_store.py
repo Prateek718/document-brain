@@ -52,16 +52,24 @@ def ensure_collection_exists() -> None:
 
 def upsert_chunks(
     points: list[PointStruct],
+    batch_size: int = 128,
 ) -> None:
-    """Insert or update a batch of points (chunk vectors + payloads).
+    """Insert or update points (chunk vectors + payloads), batched.
 
     Idempotent at the point-id level: re-upserting a point with the same id
     overwrites the previous vector and payload.
+
+    Points are upserted in batches because a single request carrying thousands
+    of vectors can exceed the server's request limits — Qdrant drops the
+    connection. Batching keeps each request small enough to succeed and makes
+    large-document ingestion reliable.
     """
     client = get_client()
-    client.upsert(
-        collection_name=settings.qdrant_collection,
-        points=points,
-        wait=True,
-    )
+    for start in range(0, len(points), batch_size):
+        batch = points[start : start + batch_size]
+        client.upsert(
+            collection_name=settings.qdrant_collection,
+            points=batch,
+            wait=True,
+        )
     logger.info("Upserted %d points to %r.", len(points), settings.qdrant_collection)

@@ -161,3 +161,10 @@ def test_documents_rejects_missing_api_key() -> None:
             files={"file": ("test.pdf", b"%PDF-fake", "application/pdf")},
         )
     assert response.status_code == 401
+
+
+def test_root_serves_frontend(client: TestClient) -> None:
+    """The root path serves the HTML frontend, unauthenticated."""
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]

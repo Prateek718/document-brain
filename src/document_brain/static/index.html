@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Document Brain</title>
+<style>
+  :root {
+    --bg: #14151a;
+    --surface: #1d1f26;
+    --ink: #e8e8ea;
+    --muted: #9b9ca6;
+    --faint: #6b6d78;
+    --line: #2c2e38;
+    --accent: #4ec99a;
+    --accent-soft: #18352b;
+    --info-soft: #1e2733;
+    --info-ink: #9cc2ef;
+    --warn-soft: #322a16;
+    --warn-ink: #e3b860;
+    --ok-soft: #18301f;
+    --ok-ink: #79d093;
+    --danger-soft: #331e1b;
+    --danger-ink: #ec8a7e;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    color-scheme: dark;
+    font-family: "Georgia", "Iowan Old Style", serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; min-height: 100vh; display: flex; flex-direction: column; }
+  .ui { font-family: "Helvetica Neue", Arial, sans-serif; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark { width: 38px; height: 38px; border-radius: 9px; background: var(--accent); color: #0f1a15; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .brand h1 { font-size: 20px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+  .brand p { font-size: 12.5px; margin: 0; color: var(--faint); font-family: "Helvetica Neue", Arial, sans-serif; }
+
+  .upload-btn { font-family: inherit; font-size: 12.5px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: border-color .15s, color .15s; white-space: nowrap; }
+  .upload-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .upload-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  .keyrow { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 12px; margin-bottom: 6px; }
+  .keyrow svg { flex-shrink: 0; color: var(--faint); }
+  .keyrow input { flex: 1; border: none; background: transparent; font-family: "Helvetica Neue", Arial, sans-serif; font-size: 13.5px; color: var(--ink); outline: none; }
+  .keyhint { font-size: 12px; color: var(--info-ink); margin: 0 2px 22px; display: flex; align-items: center; gap: 5px; font-family: "Helvetica Neue", Arial, sans-serif; }
+  .saved { font-size: 11.5px; color: var(--ok-ink); display: flex; align-items: center; gap: 3px; font-family: "Helvetica Neue", Arial, sans-serif; white-space: nowrap; }
+
+  .notice { border-radius: 8px; padding: 9px 13px; margin-bottom: 18px; font-size: 12.5px; display: flex; align-items: center; gap: 8px; font-family: "Helvetica Neue", Arial, sans-serif; }
+  .notice.ok { background: var(--ok-soft); color: var(--ok-ink); }
+  .notice.busy { background: var(--info-soft); color: var(--info-ink); }
+  .notice.err { background: var(--danger-soft); color: var(--danger-ink); }
+
+  .thread { flex: 1; display: flex; flex-direction: column; gap: 22px; margin-bottom: 22px; }
+
+  .empty { text-align: center; color: var(--faint); padding: 48px 16px; }
+  .empty .ic { font-size: 34px; opacity: .35; }
+  .empty .lead { font-size: 16px; color: var(--muted); margin: 14px 0 6px; }
+  .empty .sub { font-size: 13px; margin: 0 0 20px; font-family: "Helvetica Neue", Arial, sans-serif; }
+  .chip { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 13px; color: var(--accent); background: var(--accent-soft); border: none; border-radius: 999px; padding: 7px 14px; cursor: pointer; transition: opacity .15s; }
+  .chip:hover { opacity: .8; }
+
+  .qa { display: flex; flex-direction: column; gap: 10px; animation: rise .35s ease; }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .q { align-self: flex-end; max-width: 82%; background: var(--info-soft); color: var(--info-ink); font-family: "Helvetica Neue", Arial, sans-serif; font-size: 14px; padding: 9px 14px; border-radius: 13px 13px 3px 13px; }
+
+  .a { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .badge { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 11px; padding: 2px 9px; border-radius: 6px; display: inline-block; margin-bottom: 8px; }
+  .badge.high { background: var(--ok-soft); color: var(--ok-ink); }
+  .badge.medium { background: var(--warn-soft); color: var(--warn-ink); }
+  .badge.low, .badge.none { background: var(--danger-soft); color: var(--danger-ink); }
+  .answer-text { font-size: 15.5px; margin: 0; }
+  .cite { color: var(--accent); font-weight: bold; font-family: "Helvetica Neue", Arial, sans-serif; font-size: 13px; }
+
+  .src-toggle { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 12px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 0; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); width: 100%; text-align: left; display: flex; align-items: center; gap: 5px; }
+  .src-toggle:hover { color: var(--accent); }
+  .src-list { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
+  .src { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font-family: "Helvetica Neue", Arial, sans-serif; }
+  .src-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
+  .src-name { font-size: 12px; font-weight: 600; color: var(--ink); }
+  .src-score { font-size: 11.5px; color: var(--faint); white-space: nowrap; }
+  .src-text { font-size: 12px; color: var(--muted); margin: 0; line-height: 1.5; }
+
+  .a.loading { display: flex; align-items: center; gap: 9px; color: var(--muted); font-family: "Helvetica Neue", Arial, sans-serif; font-size: 13.5px; }
+  .spin { width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .ask { display: flex; gap: 8px; }
+  .ask input { flex: 1; font-family: "Helvetica Neue", Arial, sans-serif; font-size: 14.5px; padding: 11px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); outline: none; transition: border-color .15s; }
+  .ask input:focus:not(:disabled) { border-color: var(--accent); }
+  .ask input:disabled { opacity: .5; cursor: not-allowed; }
+  .ask button { font-family: inherit; background: var(--accent); color: #0f1a15; border: none; border-radius: 9px; padding: 0 18px; cursor: pointer; font-size: 16px; transition: opacity .15s; }
+  .ask button:hover:not(:disabled) { opacity: .9; }
+  .ask button:disabled { opacity: .4; cursor: not-allowed; }
+
+  footer { margin-top: 28px; text-align: center; font-family: "Helvetica Neue", Arial, sans-serif; }
+  footer .ground { font-size: 11.5px; color: var(--faint); margin: 0 0 8px; }
+  footer .attr { font-size: 12.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+  footer .attr:hover { color: var(--accent); }
+
+  input[type=file] { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="brand-mark ui">◆</div>
+      <div>
+        <h1>Document Brain</h1>
+        <p>Ask questions, get cited answers</p>
+      </div>
+    </div>
+    <label class="upload-btn" id="uploadLabel" title="Upload a PDF to query">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+      Upload PDF
+      <input type="file" id="fileInput" accept="application/pdf" />
+    </label>
+  </header>
+
+  <div class="keyrow">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15 19 4M18 5l2 2M15 8l2 2"/></svg>
+    <input type="password" id="keyInput" placeholder="Paste your API key" autocomplete="off" />
+    <span class="saved" id="savedTag" style="display:none">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12l5 5L20 7"/></svg>saved
+    </span>
+  </div>
+  <p class="keyhint" id="keyHint">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+    Enter your API key to start
+  </p>
+
+  <div id="notice"></div>
+
+  <div class="thread" id="thread">
+    <div class="empty" id="empty">
+      <div class="ic ui">✦</div>
+      <p class="lead">Ask a question about high school physics</p>
+      <p class="sub">This knowledge base covers Resnick Halliday</p>
+      <button class="chip" id="starterChip">How does a rocket accelerate in empty space?</button>
+    </div>
+  </div>
+
+  <div class="ask">
+    <input type="text" id="questionInput" placeholder="Enter API key above to begin…" disabled />
+    <button id="askBtn" disabled aria-label="Send question">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+  </div>
+
+  <footer>
+    <p class="ground">Answers are generated from the documents and cite their sources.</p>
+    <a class="attr" id="repoLink" href="#" target="_blank" rel="noopener">
+      Prateek Gupta · Document Brain
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 22 12c0-5.52-4.48-10-10-10z"/></svg>
+    </a>
+  </footer>
+
+</div>
+
+<script>
+  const REPO_URL = "https://github.com/Prateek718/document-brain";
+  document.getElementById("repoLink").href = REPO_URL;
+
+  let apiKey = "";
+
+  const keyInput = document.getElementById("keyInput");
+  const savedTag = document.getElementById("savedTag");
+  const keyHint = document.getElementById("keyHint");
+  const questionInput = document.getElementById("questionInput");
+  const askBtn = document.getElementById("askBtn");
+  const uploadLabel = document.getElementById("uploadLabel");
+  const fileInput = document.getElementById("fileInput");
+  const thread = document.getElementById("thread");
+  const emptyState = document.getElementById("empty");
+  const noticeBox = document.getElementById("notice");
+  const starterChip = document.getElementById("starterChip");
+
+  function refreshKeyState() {
+    apiKey = keyInput.value.trim();
+    const hasKey = apiKey.length > 0;
+    savedTag.style.display = hasKey ? "flex" : "none";
+    keyHint.style.display = hasKey ? "none" : "flex";
+    questionInput.disabled = !hasKey;
+    askBtn.disabled = !hasKey;
+    uploadLabel.style.pointerEvents = hasKey ? "auto" : "none";
+    uploadLabel.style.opacity = hasKey ? "1" : "0.45";
+    questionInput.placeholder = hasKey ? "Ask a question…" : "Enter API key above to begin…";
+  }
+  keyInput.addEventListener("input", refreshKeyState);
+
+  function showNotice(kind, text) {
+    noticeBox.innerHTML = '<div class="notice ' + kind + '">' + text + "</div>";
+  }
+  function clearNotice() { noticeBox.innerHTML = ""; }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function highlightCitations(text) {
+    return escapeHtml(text).replace(/\[Source \d+\]/g, function (m) {
+      return '<span class="cite">' + m + "</span>";
+    });
+  }
+
+  function removeEmptyState() {
+    if (emptyState && emptyState.parentNode) emptyState.parentNode.removeChild(emptyState);
+  }
+
+  function addQuestion(question) {
+    removeEmptyState();
+    const qa = document.createElement("div");
+    qa.className = "qa";
+    const q = document.createElement("div");
+    q.className = "q";
+    q.textContent = question;
+    const a = document.createElement("div");
+    a.className = "a loading";
+    a.innerHTML = '<span class="spin"></span>Searching documents…';
+    qa.appendChild(q);
+    qa.appendChild(a);
+    thread.appendChild(qa);
+    a.scrollIntoView({ behavior: "smooth", block: "end" });
+    return a;
+  }
+
+  function renderAnswer(answerEl, data) {
+    const conf = data.confidence || "none";
+    let html = '<span class="badge ' + conf + '">confidence: ' + conf + "</span>";
+    html += '<p class="answer-text">' + highlightCitations(data.answer || "") + "</p>";
+
+    const sources = data.sources || [];
+    if (sources.length > 0) {
+      const sid = "src" + Date.now() + Math.floor(Math.random() * 1000);
+      html += '<button class="src-toggle" data-target="' + sid + '">';
+      html += '<span class="chev">▸</span> ' + sources.length + " source" + (sources.length > 1 ? "s" : "") + "</button>";
+      html += '<div class="src-list" id="' + sid + '" style="display:none">';
+      sources.forEach(function (s) {
+        const loc = (s.filename || "document") + (s.page != null ? " · p." + s.page : "");
+        const score = s.score != null ? s.score.toFixed(2) : "";
+        html += '<div class="src"><div class="src-head"><span class="src-name">' + escapeHtml(loc) +
+          '</span><span class="src-score">' + score + '</span></div>' +
+          '<p class="src-text">' + escapeHtml((s.text || "").slice(0, 280)) + "</p></div>";
+      });
+      html += "</div>";
+    }
+
+    answerEl.className = "a";
+    answerEl.innerHTML = html;
+
+    const toggle = answerEl.querySelector(".src-toggle");
+    if (toggle) {
+      toggle.addEventListener("click", function () {
+        const list = document.getElementById(toggle.getAttribute("data-target"));
+        const open = list.style.display !== "none";
+        list.style.display = open ? "none" : "flex";
+        toggle.querySelector(".chev").textContent = open ? "▸" : "▾";
+      });
+    }
+  }
+
+  function renderError(answerEl, message) {
+    answerEl.className = "a";
+    answerEl.innerHTML = '<div class="notice err" style="margin:0">' + escapeHtml(message) + "</div>";
+  }
+
+  async function askQuestion(question) {
+    if (!apiKey) { showNotice("err", "Enter your API key first."); return; }
+    if (!question.trim()) return;
+    clearNotice();
+    questionInput.value = "";
+    const answerEl = addQuestion(question);
+    try {
+      const res = await fetch("/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
+        body: JSON.stringify({ question: question }),
+      });
+      if (res.status === 401) { renderError(answerEl, "Invalid API key."); return; }
+      if (!res.ok) { renderError(answerEl, "Request failed (" + res.status + "). Try again."); return; }
+      const data = await res.json();
+      renderAnswer(answerEl, data);
+    } catch (e) {
+      renderError(answerEl, "Could not reach the service. It may be waking up — try again in a moment.");
+    }
+  }
+
+  askBtn.addEventListener("click", function () { askQuestion(questionInput.value); });
+  questionInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") askQuestion(questionInput.value);
+  });
+  starterChip.addEventListener("click", function () {
+    if (!apiKey) { showNotice("err", "Enter your API key first."); keyInput.focus(); return; }
+    askQuestion(starterChip.textContent);
+  });
+
+  fileInput.addEventListener("change", async function () {
+    const file = fileInput.files[0];
+    if (!file) return;
+    if (!apiKey) { showNotice("err", "Enter your API key first."); return; }
+    showNotice("busy", "Uploading " + escapeHtml(file.name) + "…");
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const res = await fetch("/documents", {
+        method: "POST",
+        headers: { "X-API-Key": apiKey },
+        body: form,
+      });
+      if (res.status === 401) { showNotice("err", "Invalid API key."); return; }
+      if (!res.ok) { showNotice("err", "Upload failed (" + res.status + ")."); return; }
+      const data = await res.json();
+      showNotice("ok", "✓ " + escapeHtml(data.filename || file.name) + " ingested — " + (data.chunks_ingested != null ? data.chunks_ingested : "?") + " chunks");
+    } catch (e) {
+      showNotice("err", "Upload failed. The service may be waking up — try again.");
+    } finally {
+      fileInput.value = "";
+    }
+  });
+
+  refreshKeyState();
+</script>
+</body>
+</html>

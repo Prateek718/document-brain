@@ -77,6 +77,13 @@
   .badge.medium { background: var(--warn-soft); color: var(--warn-ink); }
   .badge.low, .badge.none { background: var(--danger-soft); color: var(--danger-ink); }
   .answer-text { font-size: 15.5px; margin: 0; }
+  .answer-text p { margin: 0 0 10px; }
+  .answer-text p:last-child { margin-bottom: 0; }
+  .answer-text h3, .answer-text h4, .answer-text h5, .answer-text h6 { font-size: 15.5px; font-weight: 600; margin: 14px 0 6px; color: var(--ink); }
+  .answer-text h3:first-child, .answer-text h4:first-child { margin-top: 0; }
+  .answer-text ul { margin: 0 0 10px; padding-left: 20px; }
+  .answer-text li { margin: 2px 0; }
+  .answer-text code { font-family: "SF Mono", Menlo, monospace; font-size: 13.5px; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
   .cite { color: var(--accent); font-weight: bold; font-family: "Helvetica Neue", Arial, sans-serif; font-size: 13px; }
 
   .src-toggle { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 12px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 0; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); width: 100%; text-align: left; display: flex; align-items: center; gap: 5px; }
@@ -208,10 +215,51 @@
     });
   }
 
-  function highlightCitations(text) {
-    return escapeHtml(text).replace(/\[Source \d+\]/g, function (m) {
+  function renderMarkdown(safe) {
+    // Operates on already-escaped text. Handles the subset of Markdown the
+    // model emits: headings, bold, inline code, and bullet lists.
+    const lines = safe.split("\n");
+    let out = "";
+    let inList = false;
+    for (let raw of lines) {
+      let line = raw;
+      // Bold and inline code (applied to whatever the line becomes).
+      line = line.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+      line = line.replace(/`(.+?)`/g, "<code>$1</code>");
+
+      const heading = line.match(/^(#{1,4})\s+(.*)$/);
+      const bullet = line.match(/^[-*]\s+(.*)$/);
+
+      if (bullet) {
+        if (!inList) { out += "<ul>"; inList = true; }
+        out += "<li>" + bullet[1] + "</li>";
+        continue;
+      }
+      if (inList) { out += "</ul>"; inList = false; }
+
+      if (heading) {
+        const level = Math.min(heading[1].length + 2, 6); // # -> h3, keeps page hierarchy
+        out += "<h" + level + ">" + heading[2] + "</h" + level + ">";
+      } else if (line.trim() === "") {
+        out += "<br>";
+      } else {
+        out += "<p>" + line + "</p>";
+      }
+    }
+    if (inList) out += "</ul>";
+    return out;
+  }
+
+  function highlightCitations(html) {
+    return html.replace(/\[Source \d+\]/g, function (m) {
       return '<span class="cite">' + m + "</span>";
     });
+  }
+
+  function formatAnswer(text) {
+    // Order matters: escape first (XSS-safe), then format, then highlight.
+    // [Source N] is not Markdown, so it survives renderMarkdown untouched.
+    return highlightCitations(renderMarkdown(escapeHtml(text)));
   }
 
   function removeEmptyState() {
@@ -238,7 +286,7 @@
   function renderAnswer(answerEl, data) {
     const conf = data.confidence || "none";
     let html = '<span class="badge ' + conf + '">confidence: ' + conf + "</span>";
-    html += '<p class="answer-text">' + highlightCitations(data.answer || "") + "</p>";
+    html += '<div class="answer-text">' + formatAnswer(data.answer || "") + "</div>";
 
     const sources = data.sources || [];
     if (sources.length > 0) {
